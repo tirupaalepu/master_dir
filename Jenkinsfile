@@ -6,7 +6,7 @@ pipeline {
   stages {
     stage('Hello') {
       steps {
-        sh 'ansible-playbook -i dev.inv --private-key=$ANSIBLE_PRIVATE_KEY get-uptime.yaml'
+        sh 'ansible-playbook -i dev.inv --private-key=$ANSIBLE_PRIVATE_KEY get-uptime.yml'
       }
     }
   }

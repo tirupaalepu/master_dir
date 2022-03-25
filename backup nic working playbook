@@ -1,0 +1,177 @@
+cat temp.yaml |more
+
+---
+
+  - name: "Checking Network Status"
+
+    hosts: localhost
+
+    vars:
+
+      - bknicipsroutes_file: /tmp/bknicipsroutes.csv
+
+      - ip_range_est1: 10.150.0.2|10.150.0.2
+
+      - ip_range_est2: 10.151
+
+
+
+    connection: local
+
+    tasks:
+
+
+
+    - name: "set host"
+
+      shell: "hostname | cut -d. -f1"
+
+      register: host
+
+
+
+    - name: "Check {{ ip_range_est1 }}"
+
+      shell: "ifconfig -a | egrep '{{ ip_range_est1 }}'"
+
+      register: condition_one
+
+      ignore_errors: yes
+
+
+
+    - name: "Check {{ ip_range_est2 }}"
+
+      when: condition_one.rc != 0
+
+      shell: "ifconfig -a |egrep '{{ ip_range_est2 }}'"
+
+      register: condition_two
+
+      ignore_errors: yes
+
+
+
+
+
+    # IF Condition One is Set
+
+    - name: "set EST1GW"
+
+      when: condition_one.rc == 0
+
+      shell: "grep {{ host.stdout }} {{ bknicipsroutes_file }} | awk -F ',' '{print $3}'"
+
+      register: EST1GW
+
+
+
+    - name: "set EST1GW_STATUS"
+
+      when: condition_one.rc == 0
+
+      shell: "netstat -rn | grep {{ EST1GW.stdout }} | grep 'UG' |tail -1"
+
+      register: EST1GW_STATUS
+
+      ignore_errors: yes
+
+    
+
+    - name: "Check EST1GW_STATUS"
+
+      when: condition_one.rc == 0 
+
+      set_fact:
+
+        GWSTATUS: "East1 {% if EST1GW_STATUS.stdout == '' %}BKGW Not Found{% else %}BKGW UP{% endif %}"
+
+
+
+    - name: "BKNETSTATUS EST1GW"
+
+      when: condition_one.rc == 0
+
+      shell: "ping -q -c 1 -W 1 {{ EST1GW.stdout }} >/dev/null"
+
+      register: test_gw_conn1
+
+      ignore_errors: yes
+
+
+
+    - name: "Check BKNETSTATUS"
+
+      when: condition_one.rc == 0
+
+      set_fact:
+
+        BKNETSTATUS: "{% if test_gw_conn1.stdout == '' %} 'Backup network is down' {% else %} 'Backup network is up' {% endif %}"
+
+
+
+    # IF Condition Two is Set
+
+    - name: "set EST2GW"
+
+      when: condition_one.rc != 0 and condition_two.rc == 0
+
+      shell: "grep {{ host.stdout }} {{ bknicipsroutes_file }} |awk -F ',' '{print $5}'"
+
+      register: EST2GW
+
+
+
+    - name: "set EST2GW_STATUS"
+
+      when: condition_one.rc != 0 and condition_two.rc == 0
+
+      shell: "netstat -rn |grep {{ EST2GW.stdout }} |grep 'UGH'|tail -1"
+
+      register: EST2GW_STATUS
+
+      ignore_errors: yes
+
+
+
+    - name: "Check EST2GW_STATUS"
+
+      when: condition_one.rc != 0 and condition_two.rc == 0
+
+      set_fact:
+
+        GWSTATUS: "East2 {% if EST2GW_STATUS.stdout == '' %}BKGW Not Found{% else %}BKGW UP{% endif %}"
+
+    
+
+    - name: "BKNETSTATUS EST2GW"
+
+      when: condition_one.rc != 0 and condition_two.rc == 0
+
+      shell: "ping -q -c 1 -W 1 {{ EST2GW.stdout }} >/dev/null"
+
+      register: test_gw_conn2
+
+      ignore_errors: yes
+
+
+
+    - name: "Check BKNETSTATUS"
+
+      when: condition_one.rc != 0 and condition_two.rc == 0
+
+      set_fact:
+
+        BKNETSTATUS: "East2 {% if test_gw_conn2.stdout == '' %} Backup network is down {% else %} Backup network is up {% endif %}"
+
+    
+
+    - debug: 
+
+        msg: "BKNETSTATUS: {{ BKNETSTATUS }}"
+
+
+
+    - debug: 
+
+        msg: "GWSTATUS: {{ GWSTATUS }} "

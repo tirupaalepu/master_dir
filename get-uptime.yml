@@ -1,0 +1,12 @@
+--- 
+- 
+  hosts: webservers
+  name: "Check the remote host uptime"
+  tasks: 
+    - 
+      command: uptime
+      name: "Execute the Uptime command over Command module"
+      register: uptimeoutput
+    - 
+      debug: 
+        var: uptimeoutput.stdout_lines
